@@ -35,14 +35,14 @@ WITH count_applications AS (
         position_name,
         COUNT(applicant_id) application_count
     FROM vacancy AS v
-    INNER JOIN application AS a ON a.vacancy_id = v.vacancy_id
+    LEFT JOIN application AS a ON a.vacancy_id = v.vacancy_id
     GROUP BY employer_id, position_name
 ) SELECT
     employer_name,
-    MAX(application_count) AS max_application_count
+    COALESCE(MAX(application_count), 0) AS max_application_count
 FROM employer AS e
-INNER JOIN count_applications AS ca ON e.employer_id = ca.employer_id
-GROUP BY employer_name
+LEFT JOIN count_applications AS ca ON e.employer_id = ca.employer_id
+GROUP BY e.employer_id, employer_name
 ORDER BY max_application_count DESC, employer_name
 LIMIT 5;
 
@@ -61,10 +61,16 @@ FROM count_applications AS cp
 LEFT JOIN employer AS e ON e.employer_id = cp.employer_id
 GROUP BY employer_name;
 
-SELECT
+WITH first_applications AS (
+    SELECT
+        vacancy_id,
+        MIN(created_at) AS created_at
+    FROM application
+    GROUP BY vacancy_id
+) SELECT
     area_id,
-    MIN(a.created_at - v.created_at) AS fastest_application,
-    MAX(a.created_at - v.created_at) AS slowest_application
-FROM application AS a
-INNER JOIN vacancy AS v ON v.vacancy_id = a.vacancy_id
+    MIN(fa.created_at - v.created_at) AS min_application_time,
+    MAX(fa.created_at - v.created_at) AS max_applicatin_time
+FROM vacancy AS v
+LEFT JOIN first_applications AS fa ON v.vacancy_id = fa.vacancy_id
 GROUP BY area_id;
